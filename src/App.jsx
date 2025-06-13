@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaMicrophone, FaStop, FaCopy, FaDownload, FaTrash, FaInfoCircle } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaCopy, FaDownload, FaTrash, FaInfoCircle, FaSignOutAlt } from 'react-icons/fa';
 import WelcomeScreen from './WelcomeScreen';
 
 function App() {
@@ -110,6 +110,19 @@ function App() {
   const handleClear = () => {
     if (confirm('Are you sure you want to clear the transcript?')) {
       setTranscript('');
+    }
+  };
+
+  const handleExit = () => {
+    if (transcript && confirm('Are you sure you want to exit? Your transcript will be lost.')) {
+      setTranscript('');
+      setIsListening(false);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setShowWelcome(true);
+    } else if (!transcript) {
+      setShowWelcome(true);
     }
   };
 
@@ -236,6 +249,13 @@ function App() {
                 >
                   <FaTrash className="mr-2 h-4 w-4" />
                   Clear
+                </button>
+                <button
+                  onClick={handleExit}
+                  className="inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium bg-gray-500 text-white hover:bg-gray-600"
+                >
+                  <FaSignOutAlt className="mr-2 h-4 w-4" />
+                  Exit
                 </button>
               </div>
             </>
