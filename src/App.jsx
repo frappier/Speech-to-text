@@ -120,20 +120,44 @@ function App() {
   };
 
   const handleDownload = () => {
-    // Create a temporary element to strip HTML tags
-    const tempElement = document.createElement('div');
-    tempElement.innerHTML = transcript;
-    const textToDownload = tempElement.textContent || tempElement.innerText || '';
-    
-    const blob = new Blob([textToDownload], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'transcript.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      // Get the plain text content from the transcript
+      const tempElement = document.createElement('div');
+      tempElement.innerHTML = transcript;
+      const textToDownload = tempElement.textContent || tempElement.innerText || '';
+      
+      if (!textToDownload.trim()) {
+        console.error('No text to download');
+        return;
+      }
+      
+      console.log('Text to download:', textToDownload);
+      
+      // Create a Blob with the text content
+      const blob = new Blob([textToDownload], { type: 'text/plain;charset=utf-8' });
+      
+      // Use FileSaver.js approach (implemented manually)
+      const blobURL = window.URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.style.display = 'none';
+      tempLink.href = blobURL;
+      tempLink.setAttribute('download', 'transcript.txt');
+      
+      // Safari requires the link to be in the body
+      document.body.appendChild(tempLink);
+      
+      // Trigger click programmatically
+      tempLink.click();
+      
+      // Clean up
+      document.body.removeChild(tempLink);
+      window.URL.revokeObjectURL(blobURL);
+      
+      console.log('Download initiated');
+    } catch (error) {
+      console.error('Error downloading transcript:', error);
+      alert('There was an error downloading your transcript. Please try again.');
+    }
   };
 
   const handleClear = () => {
