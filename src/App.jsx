@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaMicrophone, FaStop, FaCopy, FaDownload, FaTrash, FaInfoCircle } from 'react-icons/fa';
+import WelcomeScreen from './WelcomeScreen';
 
 function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
   const recognitionRef = useRef(null);
   const transcriptRef = useRef(null);
 
@@ -114,6 +116,10 @@ function App() {
   const handleTranscriptChange = (e) => {
     setTranscript(e.target.innerHTML);
   };
+
+  if (showWelcome) {
+    return <WelcomeScreen onGetStarted={() => setShowWelcome(false)} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
