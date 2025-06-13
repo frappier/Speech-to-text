@@ -10,6 +10,12 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const recognitionRef = useRef(null);
   const transcriptRef = useRef(null);
+  const isListeningRef = useRef(false); // Add this ref to track listening state
+
+  useEffect(() => {
+    // Update the ref whenever isListening changes
+    isListeningRef.current = isListening;
+  }, [isListening]);
 
   useEffect(() => {
     // Check if browser supports SpeechRecognition
@@ -54,26 +60,49 @@ function App() {
     };
 
     recognitionRef.current.onend = () => {
-      if (isListening) {
-        recognitionRef.current.start();
+      // Only restart if we're still in listening mode
+      // Use the ref instead of the state to avoid closure issues
+      if (isListeningRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (error) {
+          console.error('Error restarting speech recognition:', error);
+          setIsListening(false);
+        }
       }
     };
+
+    // Start or stop recognition based on isListening state
+    if (isListening) {
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+        setIsListening(false);
+      }
+    } else if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error);
+      }
+    }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          console.error('Error stopping speech recognition:', error);
+        }
       }
     };
-  }, [isListening]);
+  }, [isListening]); // This dependency ensures the effect runs when isListening changes
 
   const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
+    setIsListening(!isListening);
+    if (!isListening) {
       setTranscript('');
-      recognitionRef.current.start();
-      setIsListening(true);
     }
   };
 
@@ -117,9 +146,6 @@ function App() {
     if (transcript && confirm('Are you sure you want to exit? Your transcript will be lost.')) {
       setTranscript('');
       setIsListening(false);
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
       setShowWelcome(true);
     } else if (!transcript) {
       setShowWelcome(true);
