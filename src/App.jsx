@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaMicrophone, FaStop, FaCopy, FaDownload, FaTrash, FaInfoCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaCopy, FaDownload, FaTrash, FaInfoCircle, FaSignOutAlt, FaMagic } from 'react-icons/fa';
 import WelcomeScreen from './WelcomeScreen';
+import PreviewModal from './components/PreviewModal';
+import { formatTranscript } from './utils/textFormatter';
 
 function App() {
   const [isListening, setIsListening] = useState(false);
@@ -8,9 +10,12 @@ function App() {
   const [isSupported, setIsSupported] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
+  const [formattedText, setFormattedText] = useState('');
+  const [acceptedText, setAcceptedText] = useState('');
   const recognitionRef = useRef(null);
   const transcriptRef = useRef(null);
-  const isListeningRef = useRef(false); // Add this ref to track listening state
+  const isListeningRef = useRef(false);
 
   useEffect(() => {
     // Update the ref whenever isListening changes
@@ -103,14 +108,13 @@ function App() {
     setIsListening(!isListening);
     if (!isListening) {
       setTranscript('');
+      setAcceptedText('');
     }
   };
 
   const handleCopy = () => {
-    // Create a temporary element to strip HTML tags
-    const tempElement = document.createElement('div');
-    tempElement.innerHTML = transcript;
-    const textToCopy = tempElement.textContent || tempElement.innerText || '';
+    // Use accepted text if available, otherwise use the current transcript
+    const textToCopy = acceptedText || getPlainText(transcript);
     
     navigator.clipboard.writeText(textToCopy).then(() => {
       alert('Transcript copied to clipboard!');
@@ -119,19 +123,21 @@ function App() {
     });
   };
 
-  const handleDownload = () => {
+  const getPlainText = (html) => {
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = html;
+    return tempElement.textContent || tempElement.innerText || '';
+  };
+
+  const handleDownload = (text = null) => {
     try {
-      // Get the plain text content from the transcript
-      const tempElement = document.createElement('div');
-      tempElement.innerHTML = transcript;
-      const textToDownload = tempElement.textContent || tempElement.innerText || '';
+      // Use provided text, accepted text, or current transcript
+      const textToDownload = text || acceptedText || getPlainText(transcript);
       
       if (!textToDownload.trim()) {
         console.error('No text to download');
         return;
       }
-      
-      console.log('Text to download:', textToDownload);
       
       // Create a Blob with the text content
       const blob = new Blob([textToDownload], { type: 'text/plain;charset=utf-8' });
@@ -154,6 +160,11 @@ function App() {
       window.URL.revokeObjectURL(blobURL);
       
       console.log('Download initiated');
+      
+      // Close preview if open
+      if (showPreview) {
+        setShowPreview(false);
+      }
     } catch (error) {
       console.error('Error downloading transcript:', error);
       alert('There was an error downloading your transcript. Please try again.');
@@ -163,21 +174,44 @@ function App() {
   const handleClear = () => {
     if (confirm('Are you sure you want to clear the transcript?')) {
       setTranscript('');
+      setAcceptedText('');
     }
   };
 
   const handleExit = () => {
-    if (transcript && confirm('Are you sure you want to exit? Your transcript will be lost.')) {
+    if ((transcript || acceptedText) && confirm('Are you sure you want to exit? Your transcript will be lost.')) {
       setTranscript('');
+      setAcceptedText('');
       setIsListening(false);
       setShowWelcome(true);
-    } else if (!transcript) {
+    } else if (!transcript && !acceptedText) {
       setShowWelcome(true);
     }
   };
 
   const handleTranscriptChange = (e) => {
     setTranscript(e.target.innerHTML);
+  };
+
+  const handleFormatText = () => {
+    const plainText = getPlainText(transcript);
+    if (!plainText.trim()) {
+      alert('Please record or type some text first.');
+      return;
+    }
+    
+    const formatted = formatTranscript(plainText);
+    setFormattedText(formatted);
+    setShowPreview(true);
+  };
+
+  const handleAcceptFormatted = (text) => {
+    setAcceptedText(text);
+    setShowPreview(false);
+  };
+
+  const handleRejectFormatted = () => {
+    setShowPreview(false);
   };
 
   if (showWelcome) {
@@ -216,6 +250,8 @@ function App() {
                 <li>Your speech will be transcribed in real-time</li>
                 <li>Click the stop button when you're finished</li>
                 <li>Edit the text directly if needed</li>
+                <li>Click "Format Text" to add punctuation and structure</li>
+                <li>Review the formatted text and accept or reject it</li>
                 <li>Use the buttons below to copy or download your transcript</li>
               </ol>
             </div>
@@ -261,14 +297,35 @@ function App() {
                   onInput={handleTranscriptChange}
                   aria-label="Editable transcript"
                 ></div>
+                
+                {acceptedText && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <h3 className="text-sm font-medium text-green-800 mb-2">Formatted Text (Accepted)</h3>
+                    <div className="text-green-700 whitespace-pre-line">
+                      {acceptedText}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap justify-center gap-4">
                 <button
-                  onClick={handleCopy}
+                  onClick={handleFormatText}
                   disabled={!transcript}
                   className={`inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium ${
                     transcript 
+                      ? 'bg-purple-500 text-white hover:bg-purple-600' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <FaMagic className="mr-2 h-4 w-4" />
+                  Format Text
+                </button>
+                <button
+                  onClick={handleCopy}
+                  disabled={!transcript && !acceptedText}
+                  className={`inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium ${
+                    transcript || acceptedText
                       ? 'bg-secondary-500 text-white hover:bg-secondary-600' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
@@ -277,10 +334,10 @@ function App() {
                   Copy to Clipboard
                 </button>
                 <button
-                  onClick={handleDownload}
-                  disabled={!transcript}
+                  onClick={() => handleDownload()}
+                  disabled={!transcript && !acceptedText}
                   className={`inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium ${
-                    transcript 
+                    transcript || acceptedText
                       ? 'bg-green-500 text-white hover:bg-green-600' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
@@ -290,9 +347,9 @@ function App() {
                 </button>
                 <button
                   onClick={handleClear}
-                  disabled={!transcript}
+                  disabled={!transcript && !acceptedText}
                   className={`inline-flex items-center px-4 py-2 rounded-md shadow-sm text-sm font-medium ${
-                    transcript 
+                    transcript || acceptedText
                       ? 'bg-red-500 text-white hover:bg-red-600' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
@@ -320,6 +377,16 @@ function App() {
           </p>
         </div>
       </footer>
+
+      <PreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        originalText={getPlainText(transcript)}
+        formattedText={formattedText}
+        onAccept={handleAcceptFormatted}
+        onReject={handleRejectFormatted}
+        onDownload={handleDownload}
+      />
     </div>
   );
 }
